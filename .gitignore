@@ -3,7 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 home/
-log/
+logs/
+_backup_json/
+_backup_10k/
 # C extensions
 *.so
 
