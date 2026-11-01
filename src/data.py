@@ -675,7 +675,15 @@ class CsvDataset(Dataset):
                  return_data_identifier=False, return_filename=False):
         logging.debug(f'Loading csv data from {input_filename}.')
         df = pd.read_csv(input_filename, sep=sep)
-        self.images = df[img_key].tolist()
+        csv_dir = Path(input_filename).resolve().parent
+        self.images = []
+        for image in df[img_key].tolist():
+            image_path = Path(str(image)).expanduser()
+            if not image_path.is_file():
+                local_path = csv_dir / image_path.parent.name / image_path.name
+                if local_path.is_file():
+                    image_path = local_path
+            self.images.append(str(image_path))
         self.captions = df[caption_key].tolist()
         self.transforms = transforms
         self.return_data_identifier = return_data_identifier

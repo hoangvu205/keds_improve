@@ -1,4 +1,5 @@
 numpy
+packaging
 scikit-image
 scikit-learn
 tensorboard

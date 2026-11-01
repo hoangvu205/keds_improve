@@ -208,11 +208,24 @@ def visualize_results(model, img2text, args, prompt, dataloader):
     m = model.module if args.distributed or args.dp else model
     query_file = args.query_file
     path_save = os.path.join("./data", args.retrieval_data.split('/')[-1].split('.')[0]+".pkl")
-    if os.path.exists(path_save):
+    use_cached_features = os.path.exists(path_save)
+    if use_cached_features:
         with open(path_save, 'rb') as f:
             data = pickle.load(f)
-        all_image_features = data['feats']
-        all_image_filenames = data['path']
+        cached_features = data['feats']
+        cached_filenames = data['path']
+        use_cached_features = (
+            len(cached_filenames) == len(dataloader.dataset)
+            and cached_features.shape[0] == len(cached_filenames)
+            and all(os.path.isfile(path) for path in cached_filenames)
+        )
+        if use_cached_features:
+            all_image_features = cached_features
+            all_image_filenames = cached_filenames
+        else:
+            logging.info("Cached retrieval features are stale; recomputing them.")
+
+    if use_cached_features:
         all_image_features = torch.from_numpy(all_image_features).cuda(args.gpu, non_blocking=True)
     else:
         ## Extract features of target images. 
@@ -244,20 +257,10 @@ def visualize_results(model, img2text, args, prompt, dataloader):
         img_feature = m.encode_image(query_img) 
         
         
-        # this part for late fusion cross-attention prediction
-        composed_features, collect_ind = m.get_text_tokens(text)
-
-        if img2text is not None:
-            try:
-                # Cố gắng chạy theo kiến trúc KEDs mới (cần 2 tham số)
-                composed_features = img2text(img_feature.unsqueeze(1), composed_features)
-            except TypeError:
-                # Nếu báo lỗi TypeError, tự động lùi về kiến trúc Pic2Word cũ (chỉ 1 tham số)
-                composed_features = img2text(img_feature.unsqueeze(1))
-
-        # composed_features = img2text(img_feature.unsqueeze(1), composed_features) # fuse use late cross attention
-        composed_feature = composed_features[:,0] @ m.text_projection
-
+        query_image_tokens = img2text(img_feature)
+        composed_feature = m.encode_text_img_vis(
+            text, query_image_tokens, split_ind=id_split
+        )
         composed_feature = composed_feature / composed_feature.norm(dim=-1, keepdim=True)
         img_feature = img_feature / img_feature.norm(dim=-1, keepdim=True)
         text_feature = m.encode_text(text)
@@ -279,17 +282,21 @@ def make_html(prompts, query_image, images, path_html):
     html_all = """"""        
     for i in range(len(prompts)):
         prompt = prompts[i]            
-        query_image_local = os.path.join(path_html, "images", query_image.split("/")[-1])
-        query_image_local_path = os.path.join("images", query_image.split("/")[-1])
-        shutil.copy(query_image, query_image_local)
+        query_image_name = os.path.basename(query_image)
+        query_image_local = os.path.join(path_html, "images", query_image_name)
+        query_image_local_path = "images/" + query_image_name
+        if os.path.abspath(query_image) != os.path.abspath(query_image_local):
+            shutil.copy(query_image, query_image_local)
         image_list = images[i]        
         html = """<table><tr>"""    
         html += """<td><p style="display:inline-block;vertical-align;font-size:20px">%s</p></td>"""%(prompt)
         html += """<td><p style="margin-right: 50px;"><img src="%s" height="100"></p></td>"""%(query_image_local_path)
         for image in image_list:
-            image_local = os.path.join(path_html, "images", image.split("/")[-1])
-            image_path = os.path.join("images", image.split("/")[-1])
-            shutil.copy(image, image_local)
+            image_name = os.path.basename(image)
+            image_local = os.path.join(path_html, "images", image_name)
+            image_path = "images/" + image_name
+            if os.path.abspath(image) != os.path.abspath(image_local):
+                shutil.copy(image, image_local)
             html += """<td><img src="%s" height=%s></td>"""%(image_path, 200)
         html += """</tr></table>"""
         html_all += html
@@ -1180,4 +1187,3 @@ def extract_image_features(dataset, clip_model, args, batch_size: Optional[int] 
     index_features = torch.vstack(index_features)
     
     return index_features, index_names
-

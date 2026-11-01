@@ -794,7 +794,7 @@ class CLIP(nn.Module):
                     sample = torch.cat([sample[:, :index], img, sample[:, index+1:]], dim=1)
             else:
                 img_tokens = img_tokens.view(1, 1, -1)
-                ind_insert = ind_insert.nonzero()[0]
+                ind_insert = ind_insert.nonzero()[0].item()
                 sample = torch.cat([sample[:, :ind_insert], img_tokens, sample[:, ind_insert+1:]], dim=1)                
             new_x.append(sample)
         x = torch.cat(new_x, dim=0)
