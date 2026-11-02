@@ -468,10 +468,15 @@ def main():
     torch.cuda.empty_cache()
     """
     print("Loading databases!")
-    image_bases = torch.load("/content/drive/MyDrive/ml/keds/home/cc_image_databases.pt",map_location="cpu")
-    text_bases = torch.load("/content/drive/MyDrive/ml/keds/home/cc_text_databases.pt",map_location="cpu")
+    default_home = Path(__file__).resolve().parent.parent / "home"
+    home_dir = Path(os.environ.get("KEDS_HOME", str(default_home)))
+    if not (home_dir / "cc_image_databases.pt").is_file():
+        home_dir = Path("/content/drive/MyDrive/ml/keds/home")
+    print(f"Using database directory: {home_dir}")
+    image_bases = torch.load(home_dir / "cc_image_databases.pt", map_location="cpu")
+    text_bases = torch.load(home_dir / "cc_text_databases.pt", map_location="cpu")
     basenames = []
-    with open("/content/drive/MyDrive/ml/keds/home/database_names.txt", "r") as f:
+    with open(home_dir / "database_names.txt", "r") as f:
         for line in f:
             basenames.append(line.strip())
     database = [image_bases,text_bases,basenames]#,subject_bases,other_bases]

@@ -108,6 +108,12 @@ def parse_args():
         "--n-layer", type=int, default=2, help="Number of layers in im2text"
     )
     parser.add_argument(
+        "--caption-loss-weight",
+        type=float,
+        default=0.1,
+        help="Weight of the real-caption alignment loss.",
+    )
+    parser.add_argument(
         "--dataset-type",
         choices=["webdataset", "csv", "inet", "auto", "inet,csv", "csv,inet", "directory", "fashion-iq", "cirr", "imgnet_r"],
         default="auto",

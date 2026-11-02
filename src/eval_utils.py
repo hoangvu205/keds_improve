@@ -58,16 +58,14 @@ for i in range(len(img_cap_list)):
 
 def load_model_without_definition(args,img2text, retrieval_fuse, text_condition, location):
     if args.gpu is None:
-        checkpoint = torch.load(location)
+        checkpoint = torch.load(location, weights_only=False)
     else:
         # Map model to be loaded to specified single gpu.
         loc = "cuda:{}".format(args.gpu)
-        checkpoint = torch.load(location, map_location=loc)
+        checkpoint = torch.load(location, map_location=loc, weights_only=False)
     sd_img2text = checkpoint["state_dict_img2text"]
     sd_retrieval_fuse = checkpoint["state_dict_retrieval_fuse"]
     sd_text_condition = checkpoint["state_dict_text_condition"]
-    if not args.distributed and next(iter(sd.items()))[0].startswith('module'):
-        sd = {k[len('module.'):]: v for k, v in sd.items()}
     if not args.distributed and next(iter(sd_img2text.items()))[0].startswith('module'):
         sd_img2text = {k[len('module.'):]: v for k, v in sd_img2text.items()}
     if not args.distributed and next(iter(sd_retrieval_fuse.items()))[0].startswith('module'):
@@ -496,7 +494,7 @@ def evaluate_coco(model, img2text, retrieval_fuse, text_condition,database, args
             img2text_tb = copy.deepcopy(img2text) 
             retrieval_fuse_tb = copy.deepcopy(retrieval_fuse) 
             text_condition_tb = copy.deepcopy(text_condition)
-            text_location = f"./image_branch/checkpoints/epoch_{2*j}.pt"
+            text_location = f"./text_branch/checkpoints/epoch_{2*j}.pt"
             img2text_tb, retrieval_fuse_tb, text_condition_tb = load_model_without_definition(args,img2text_tb, retrieval_fuse_tb, text_condition_tb, text_location) 
 
             img2text_tb.eval()

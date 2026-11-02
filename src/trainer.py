@@ -47,9 +47,13 @@ def get_loss_img2text_image(model, img2text,retrieval_fuse, text_condition, imag
     #caps = caps.cuda(args.gpu, non_blocking=True)
     with torch.no_grad():
         image_features = images
-        ori_cap_feature = caps
-        #image_features = model.encode_image(images)
-        #cap_feature = model.encode_text(caps)
+        # Caption supervision: captions may be token ids (webdataset) or
+        # precomputed text features (directory dataset).
+        if torch.is_floating_point(caps):
+            caption_features = caps
+        else:
+            caption_features = model.encode_text(caps)
+        caption_features = caption_features / caption_features.norm(dim=-1, keepdim=True)
     
     topk_image_features,topk_text_features = get_retrieved_features(image_features,database,args)
     topk_image_features = topk_image_features.cuda(args.gpu, non_blocking=True)
@@ -134,6 +138,13 @@ def get_loss_img2text_image(model, img2text,retrieval_fuse, text_condition, imag
         logits_per_text = logits_per_image.t()
         loss_txt_val = loss_txt(logits_per_text, ground_truth)
 
+        # Align the reconstructed pseudo-text with the real caption embedding.
+        if caption_features.shape[-1] == text_features.shape[-1]:
+            caption_target = torch.ones(text_features.size(0), device=text_features.device, dtype=torch.float32)
+            caption_loss = loss_extra(text_features.float(), caption_features.float(), caption_target)
+        else:
+            caption_loss = text_features.new_zeros(())
+
         # Text loss.
         #extra_target = torch.as_tensor([1])
         #if args.gpu is not None:
@@ -155,13 +166,15 @@ def get_loss_img2text_image(model, img2text,retrieval_fuse, text_condition, imag
         loss_img_val = loss_img(logits_per_image, ground_truth)
         logits_per_text = logit_scale * text_features @ image_features.t()
         loss_txt_val = loss_txt(logits_per_text, ground_truth)
-        # Text loss.
-        extra_logits_per_image = logit_scale * ori_cap_feature @ other_embedded_features.t()
-        extra_loss_img_val = loss_img(extra_logits_per_image, ground_truth)
-        extra_logits_per_text = extra_logits_per_image.t()
-        extra_loss_txt_val = loss_txt(extra_logits_per_text, ground_truth)
+        # Align the reconstructed pseudo-text with the real caption embedding.
+        if caption_features.shape[-1] == text_features.shape[-1]:
+            caption_target = torch.ones(text_features.size(0), device=text_features.device, dtype=torch.float32)
+            caption_loss = loss_extra(text_features.float(), caption_features.float(), caption_target)
+        else:
+            caption_loss = text_features.new_zeros(())
 
-    total_loss = (loss_img_val + loss_txt_val) / 2 
+    total_loss = (loss_img_val + loss_txt_val) / 2 \
+        + getattr(args, "caption_loss_weight", 0.1) * caption_loss
     return total_loss
 
 

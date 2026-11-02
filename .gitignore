@@ -8,6 +8,8 @@ demo_result/
 demo_result2/
 _backup_json/
 _backup_10k/
+opencode.json
+note.txt
 # C extensions
 *.so
 
