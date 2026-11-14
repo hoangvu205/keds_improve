@@ -1,3 +1,8 @@
+#custom user
+/cc3m_train
+/nhap
+/backup
+/evalation
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -12,7 +17,6 @@ opencode.json
 note.txt
 # C extensions
 *.so
-
 # Distribution / packaging
 .Python
 build/
