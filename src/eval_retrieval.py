@@ -162,12 +162,7 @@ def load_model(args):
 
     assert args.resume is not None
     if os.path.isfile(args.resume):
-        if args.gpu is None:
-            checkpoint = torch.load(args.resume)
-        else:
-            # Map model to be loaded to specified single gpu.
-            loc = "cuda:{}".format(args.gpu)
-            checkpoint = torch.load(args.resume, map_location=loc)
+        checkpoint = torch.load(args.resume, map_location="cpu", weights_only=False)
         sd = checkpoint["state_dict"]
         sd_img2text = checkpoint["state_dict_img2text"]
         sd_retrieval_fuse = checkpoint["state_dict_retrieval_fuse"]
@@ -236,15 +231,11 @@ def main_worker(gpu, ngpus_per_node, log_queue, args):
     #cudnn.deterministic = False
     seed_everything(args.seed)  
     torch.cuda.manual_seed_all(args.seed) 
-    torch.use_deterministic_algorithms(True)
+    torch.use_deterministic_algorithms(False)
     #root_project = os.path.join(get_project_root(), 'data')
-    root_project = "/home/comp_data"
+    root_project = os.environ.get("KEDS_DATA_ROOT", "/home/comp_data")
 
     # We load database here.
-    
-    Base_dataset = LoadDataBase("/home/clip_cc_database_750000") #dino_cc_database")
-    print("Loading databases!")
-    dataloader = DataLoader(Base_dataset, batch_size=100, shuffle=False, num_workers=10)
     database = {}
     image_bases = []
     text_bases = []
@@ -278,21 +269,20 @@ def main_worker(gpu, ngpus_per_node, log_queue, args):
     database = [image_bases,text_bases,basenames]#,subject_bases,other_bases]
     """
     print("Loading databases!")
-    image_bases = torch.load("/home/cc_image_databases.pt",map_location="cpu")
-    text_bases = torch.load("/home/cc_text_databases.pt",map_location="cpu")
+    db_dir = os.environ.get("KEDS_HOME", "/home")
+    image_bases = torch.load(os.path.join(db_dir, "cc_image_databases.pt"),map_location="cpu")
+    text_bases = torch.load(os.path.join(db_dir, "cc_text_databases.pt"),map_location="cpu")
     basenames = []
-    with open("/home/database_names.txt", "r") as f:
+    with open(os.path.join(db_dir, "database_names.txt"), "r") as f:
         for line in f:
             basenames.append(line.strip())
     database = [image_bases,text_bases,basenames]#,subject_bases,other_bases]
     
-    ngpus = faiss.get_num_gpus()
-    print("number of GPUs:", ngpus)
     image_cpu_index = faiss.IndexFlatL2(768)
-    image_gpu_index = faiss.index_cpu_to_all_gpus(image_cpu_index)
+    image_gpu_index = image_cpu_index
     image_gpu_index.add(image_bases.numpy())  # add vectors to the image_index
     text_cpu_index = faiss.IndexFlatL2(768)
-    text_gpu_index = faiss.index_cpu_to_all_gpus(text_cpu_index)
+    text_gpu_index = text_cpu_index
     text_gpu_index.add(text_bases.numpy())  # add vectors to the image_index
     database.append(image_gpu_index)
     database.append(text_gpu_index)

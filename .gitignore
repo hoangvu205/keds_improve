@@ -3,7 +3,9 @@
 /nhap
 /backup
 /evalation
-/data
+CIRR/
+text_branch/
+image_branch/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -16,6 +18,7 @@ _backup_json/
 _backup_10k/
 opencode.json
 note.txt
+
 # C extensions
 *.so
 # Distribution / packaging

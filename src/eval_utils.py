@@ -61,8 +61,7 @@ def load_model_without_definition(args,img2text, retrieval_fuse, text_condition,
         checkpoint = torch.load(location, weights_only=False)
     else:
         # Map model to be loaded to specified single gpu.
-        loc = "cuda:{}".format(args.gpu)
-        checkpoint = torch.load(location, map_location=loc, weights_only=False)
+        checkpoint = torch.load(location, map_location="cpu", weights_only=False)
     sd_img2text = checkpoint["state_dict_img2text"]
     sd_retrieval_fuse = checkpoint["state_dict_retrieval_fuse"]
     sd_text_condition = checkpoint["state_dict_text_condition"]
@@ -628,7 +627,7 @@ def evaluate_cirr(model, img2text, retrieval_fuse, text_condition,database, args
                 all_target_paths.append(path)
             all_target_global = all_target_paths
 
-        for j in range(1,31):
+        for j in [19]:
             location = f"./image_branch/checkpoints/epoch_{j}.pt"
             img2text, retrieval_fuse, text_condition = load_model_without_definition(args,img2text, retrieval_fuse, text_condition, location) 
             img2text_tb = copy.deepcopy(img2text) 
